@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blox Fruits Web Avançado</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+html, body { margin:0; padding:0; height:100%; font-family:'Roboto', sans-serif; background:linear-gradient(135deg,#1E90FF,#FF4500); color:#fff; overflow:hidden;}
+.container { display:flex; flex-direction:column; align-items:center; padding:20px; height:100%; box-sizing:border-box;}
+h1 { font-size:2.5rem; margin-bottom:20px; background:linear-gradient(90deg,#1E90FF,#FF4500); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+.level-display,.island-display { font-size:1.5rem; margin-bottom:20px;}
+.buttons { display:flex; flex-wrap:wrap; justify-content:center; gap:15px; margin-bottom:20px;}
+button { padding:15px 25px; font-size:1rem; font-weight:bold; border:none; border-radius:15px; cursor:pointer; background:linear-gradient(135deg,#1E90FF,#FF4500); color:#fff; transition:0.2s;}
+button:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.5);}
+.inventory,.spin-fruit,.theme-selector,.codes { display:none; margin-bottom:20px;}
+.inventory.active,.spin-fruit.active,.theme-selector.active,.codes.active { display:block;}
+ul { list-style:none; padding:0;}
+li { background: rgba(255,255,255,0.1); margin:5px 0; padding:8px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+#fruitCorner { position:fixed; bottom:20px; right:20px; width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#FF4500,#1E90FF); display:flex; justify-content:center; align-items:center; font-weight:bold; cursor:pointer; color:#fff; text-align:center; padding:10px; z-index:10; display:none;}
+#fruitActions { display:none; position:fixed; bottom:110px; right:20px; background:rgba(0,0,0,0.8); padding:10px; border-radius:12px; z-index:10;}
+#fruitActions button { margin:5px 0; width:100%;}
+.messageBox { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); padding:10px 20px; border-radius:12px; color:#fff; font-weight:bold; display:none; z-index:20;}
+.theme-selector button { width:100px;}
+#adminPanel { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 400px; background: rgba(0,0,0,0.95); padding: 15px; border-radius: 12px; display: none; z-index: 30; color: #fff;}
+#adminPanel input { width:100%; padding:6px; border-radius:8px; border:none; margin-bottom:10px; background: rgba(255,255,255,0.1); color:#fff;}
+#codesDiv input { width:80%; padding:6px; border-radius:8px; border:none; margin-right:5px; background: rgba(255,255,255,0.1); color:#fff;}
+#codesDiv button { padding:6px 10px; border-radius:8px; border:none; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Blox Fruits Web Avançado</h1>
+<div class="level-display">Level: <span id="level">1</span></div>
+<div class="island-display">Ilha: <span id="island">Ilha Inicial</span></div>
+
+<div class="buttons">
+<button id="killBandit">Matar Bandido</button>
+<button id="spinBtn">Girar Frutas</button>
+<button id="inventoryBtn">Inventário</button>
+<button id="themeBtn">Tema</button>
+<button id="codesBtn">Codes</button>
+</div>
+
+<div class="spin-fruit" id="spinFruitDiv">
+<p>Clique no botão para girar uma fruta!</p>
+<button id="spinFruit">Girar!</button>
+<p id="fruitResult" style="margin-top: 10px; font-weight: bold;"></p>
+</div>
+
+<div class="inventory" id="inventoryDiv">
+<h3>Seu Inventário</h3>
+<ul id="inventoryList"><li>Nenhuma fruta ainda</li></ul>
+</div>
+
+<div class="theme-selector" id="themeDiv">
+<h3>Escolha o tema:</h3>
+<button data-theme="default">Azul/Vermelho</button>
+<button data-theme="black">Preto</button>
+<button data-theme="white">Branco</button>
+</div>
+
+<div class="codes" id="codesDiv">
+<h3>Insira seu código:</h3>
+<input type="text" id="codeInput" placeholder="Digite o código">
+<button id="enterCodeBtn">Enter</button>
+</div>
+</div>
+
+<div id="fruitCorner" title="Clique para interagir com a fruta"></div>
+<div id="fruitActions">
+<button id="eatFruit">Comer</button>
+<button id="storeFruit">Armazenar</button>
+<button id="dropFruit">Dropar</button>
+</div>
+
+<div class="messageBox" id="messageBox"></div>
+
+<!-- Admin Console -->
+<div id="adminPanel">
+<h3>Admin Console</h3>
+<input type="text" id="commandInput" placeholder="Digite um comando (/level 100, /tty, /autolevel)">
+</div>
+
+<script>
+// --- SISTEMA DO JOGO ---
+const spinBtn = document.getElementById('spinBtn');
+const inventoryBtn = document.getElementById('inventoryBtn');
+const themeBtn = document.getElementById('themeBtn');
+const codesBtn = document.getElementById('codesBtn');
+const spinFruitDiv = document.getElementById('spinFruitDiv');
+const inventoryDiv = document.getElementById('inventoryDiv');
+const themeDiv = document.getElementById('themeDiv');
+const codesDiv = document.getElementById('codesDiv');
+const levelSpan = document.getElementById('level');
+const islandSpan = document.getElementById('island');
+const killBanditBtn = document.getElementById('killBandit');
+
+const fruits = ["Gomu Gomu no Mi","Mera Mera no Mi","Hie Hie no Mi","Gura Gura no Mi","Yami Yami no Mi"];
+let inventory = [];
+let level = 1;
+let currentFruit = null;
+let island = "Ilha Inicial";
+
+const fruitCorner = document.getElementById('fruitCorner');
+const fruitActions = document.getElementById('fruitActions');
+const eatBtn = document.getElementById('eatFruit');
+const storeBtn = document.getElementById('storeFruit');
+const dropBtn = document.getElementById('dropFruit');
+
+const inventoryList = document.getElementById('inventoryList');
+const messageBox = document.getElementById('messageBox');
+
+function showMessage(text){ messageBox.textContent=text; messageBox.style.display='block'; setTimeout(()=>{messageBox.style.display='none';},2000); }
+
+function saveProgress(){ localStorage.setItem('level',level); localStorage.setItem('inventory',JSON.stringify(inventory)); localStorage.setItem('island',island); }
+function loadProgress(){ const savedLevel=localStorage.getItem('level'); const savedInventory=localStorage.getItem('inventory'); const savedIsland=localStorage.getItem('island'); if(savedLevel) level=parseInt(savedLevel); if(savedInventory) inventory=JSON.parse(savedInventory); if(savedIsland) island=savedIsland; levelSpan.textContent=level; islandSpan.textContent=island; updateInventory(); updateSpinButton(); }
+
+function updateInventory(){ inventoryList.innerHTML=''; if(inventory.length===0){ inventoryList.innerHTML="<li>Nenhuma fruta ainda</li>"; } else { inventory.forEach((fruit,index)=>{ const li=document.createElement('li'); li.textContent=fruit; const pickBtn=document.createElement('button'); pickBtn.textContent="Pegar"; pickBtn.style.marginLeft="5px"; pickBtn.addEventListener('click',()=>{ if(level<50){ showMessage("Level insuficiente! Precisa ser 50 ou mais."); return; } currentFruit=fruit; fruitCorner.style.display='flex'; fruitCorner.textContent=fruit; inventory.splice(index,1); updateInventory(); saveProgress(); showMessage(`Você pegou a fruta ${fruit} do inventário!`); }); li.appendChild(pickBtn); inventoryList.appendChild(li); }); } }
+
+function updateSpinButton(){ const btn=document.getElementById('spinFruit'); if(level<50){ btn.disabled=true; btn.style.opacity="0.5"; } else { btn.disabled=false; btn.style.opacity="1"; } }
+
+function checkIsland(){ if(level>=50 && level<100) island="Ilha do Guerreiro"; if(level>=100 && level<200) island="Ilha do Fogo"; if(level>=200) island="Ilha do Mar"; islandSpan.textContent=island; }
+
+// Alternar abas
+spinBtn.addEventListener('click',()=>{ spinFruitDiv.classList.toggle('active'); inventoryDiv.classList.remove('active'); themeDiv.classList.remove('active'); codesDiv.classList.remove('active'); });
+inventoryBtn.addEventListener('click',()=>{ inventoryDiv.classList.toggle('active'); spinFruitDiv.classList.remove('active'); themeDiv.classList.remove('active'); codesDiv.classList.remove('active'); });
+themeBtn.addEventListener('click',()=>{ themeDiv.classList.toggle('active'); inventoryDiv.classList.remove('active'); spinFruitDiv.classList.remove('active'); codesDiv.classList.remove('active'); });
+codesBtn.addEventListener('click',()=>{ codesDiv.classList.toggle('active'); inventoryDiv.classList.remove('active'); spinFruitDiv.classList.remove('active'); themeDiv.classList.remove('active'); });
+
+// Girar fruta
+document.getElementById('spinFruit').addEventListener('click',()=>{ if(level<50) return; const index=Math.floor(Math.random()*fruits.length); const fruit=fruits[index]; currentFruit=fruit; fruitCorner.style.display='flex'; fruitCorner.textContent=fruit; showMessage(`Você girou e recebeu a fruta: ${fruit}`); saveProgress(); });
+
+// Interação fruta
+fruitCorner.addEventListener('click',()=>{ fruitActions.style.display='block'; });
+eatBtn.addEventListener('click',()=>{ if(currentFruit){ if(level<50){ showMessage("Level insuficiente para comer esta fruta!"); return; } showMessage(`Você comeu a fruta ${currentFruit} e recebeu poder!`); level+=2; levelSpan.textContent=level; currentFruit=null; fruitCorner.style.display='none'; fruitActions.style.display='none'; checkIsland(); updateSpinButton(); saveProgress(); } });
+storeBtn.addEventListener('click',()=>{ if(currentFruit){ inventory.push(currentFruit); currentFruit=null; fruitCorner.style.display='none'; fruitActions.style.display='none'; updateInventory(); saveProgress(); showMessage("Fruta armazenada no inventário!"); } });
+dropBtn.addEventListener('click',()=>{ if(currentFruit){ showMessage(`Você dropou a fruta ${currentFruit}.`); currentFruit=null; fruitCorner.style.display='none'; fruitActions.style.display='none'; } });
+killBanditBtn.addEventListener('click',()=>{ const xp=Math.floor(Math.random()*3)+1; level+=xp; levelSpan.textContent=level; checkIsland(); updateSpinButton(); saveProgress(); showMessage(`Você matou um bandido e ganhou ${xp} level(s)!`); });
+
+// Tema
+const themeButtons = themeDiv.querySelectorAll('button');
+themeButtons.forEach(btn=>{ btn.addEventListener('click',()=>{ const theme=btn.dataset.theme; if(theme==='black'){ document.body.style.background="#000"; document.body.style.color="#fff"; } else if(theme==='white'){ document.body.style.background="#fff"; document.body.style.color="#000"; } else { document.body.style.background="linear-gradient(135deg,#1E90FF,#FF4500)"; document.body.style.color="#fff"; } }); });
+
+loadProgress();
+checkIsland();
+updateSpinButton();
+
+// --- CODES ---
+const codeInput = document.getElementById('codeInput');
+const enterCodeBtn = document.getElementById('enterCodeBtn');
+
+enterCodeBtn.addEventListener('click', () => {
+  const code = codeInput.value.trim().toUpperCase();
+  if(code === "NEWWEBSITEBLOX"){
+    level += 5*50; // 5x50 minutos de XO
+    levelSpan.textContent = level;
+    checkIsland();
+    updateSpinButton();
+    saveProgress();
+    showMessage("Código aceito! Você recebeu 5x50 minutos de XO!");
+  } else {
+    showMessage("Código inválido!");
+  }
+  codeInput.value = "";
+});
+
+// --- ADMIN CONSOLE COM AUT0LEVEL ---
+const adminPanelEl=document.getElementById('adminPanel');
+const commandInput=document.getElementById('commandInput');
+const currentUser="hierror"; // detecta automaticamente
+let autoLevelInterval = null;
+
+// ativa console automaticamente
+window.addEventListener('load',()=>{
+    if(currentUser==="hierror"){
+        adminPanelEl.style.display='block';
+        showMessage("Admin Console ativado automaticamente!");
+    }
+});
+
+// Função de comandos
+commandInput.addEventListener('keydown', (e)=>{
+    if(e.key==="Enter"){
+        const command=commandInput.value.trim().toLowerCase();
+        if(command.startsWith("/level")){
+            const parts=command.split(" ");
+            const num=parseInt(parts[1]);
+            if(!isNaN(num)){
+                level=num;
+                levelSpan.textContent=level;
+                checkIsland();
+                updateSpinButton();
+                saveProgress();
+                showMessage(`Seu level foi alterado para ${num}`);
+            } else { showMessage("Número inválido!"); }
+        } else if(command==="/tty"){
+            const fruitName="Triple Dark Yoru";
+            inventory.push(fruitName);
+            updateInventory();
+            saveProgress();
+            showMessage(`Você recebeu a fruta ${fruitName}`);
+        } else if(command==="/autolevel"){
+            if(autoLevelInterval) clearInterval(autoLevelInterval);
+            autoLevelInterval = setInterval(()=>{
+                level += 1;
+                levelSpan.textContent = level;
+                checkIsland();
+                updateSpinButton();
+                saveProgress();
+            }, 2000);
+            showMessage("AutoLevel ativado! Seu level vai subir automaticamente.");
+        } else { showMessage("Comando desconhecido!"); }
+        commandInput.value="";
+    }
+});
+</script>
+</body>
+</html>
